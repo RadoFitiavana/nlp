@@ -14,7 +14,7 @@ class Bow(ABC):
         
 class CountBow(Bow):
     def vectorize(self, corpus):
-        vectorizer = CountVectorizer(n_jobs=-1)
+        vectorizer = CountVectorizer()
         self.embedding = vectorizer.fit_transform(corpus)
 
     def vectorizeFreq(self, corpus):
@@ -25,7 +25,7 @@ class CountBow(Bow):
 
 class TfidfBow(Bow):
     def vectorize(self, corpus):
-        vectorizer = TfidfVectorizer(n_jobs=-1)
+        vectorizer = TfidfVectorizer()
         self.embedding = vectorizer.fit_transform(corpus)
     
     def vectorizeNorm(self, corpus):
@@ -39,7 +39,7 @@ class Ngram():
         self.embedding = None
 
     def vectorize(self, corpus, win_size=2):
-        vectorizer = TfidfVectorizer(ngram_range=(win_size,win_size), n_jobs=-1)
+        vectorizer = TfidfVectorizer(ngram_range=(win_size,win_size))
         self.embedding = vectorizer.fit_transform(corpus)
 
     def vectorizeNorm(self, corpus, win_size=2):
