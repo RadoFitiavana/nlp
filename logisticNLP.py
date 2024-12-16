@@ -65,8 +65,21 @@ def prepare_bow_features(bow_method, train_texts, test_texts, method="default", 
 
     # Sparse matrix for training data
     X_train = bow_method.embedding
+
+    if isinstance(bow_method, Ngram):
+        if method == "norm":
+            bow_method.vectorizeNorm(test_texts, win_size=win_size)
+        else:
+            bow_method.vectorize(test_texts, win_size=win_size)
+    else:
+        if method == "freq" and hasattr(bow_method, "vectorizeFreq"):
+            bow_method.vectorizeFreq(train_texts)
+        elif method == "norm" and hasattr(bow_method, "vectorizeNorm"):
+            bow_method.vectorizeNorm(test_texts)
+        else:
+            bow_method.vectorize(test_texts)
     # Transform the test data explicitly
-    X_test = bow_method.vectorizer.transform(test_texts)
+    X_test = bow_method.embedding
     
     print(f"Train Feature Matrix Shape: {X_train.shape}")
     print(f"Test Feature Matrix Shape: {X_test.shape}\n")
