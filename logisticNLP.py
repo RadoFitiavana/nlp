@@ -25,7 +25,7 @@ def load_imdb_data():
 def train_logistic_regression(X_train, y_train, X_test, y_test):
     """Train logistic regression and evaluate its performance."""
     print("Training Logistic Regression Model...")
-    model = LogisticRegression(solver='liblinear', max_iter=500, n_jobs=-1)
+    model = LogisticRegression(max_iter=1000, n_jobs=-1)
     model.fit(X_train, y_train)
 
     # Predictions
