@@ -18,7 +18,7 @@ class SkipGramMLP(nn.Module):
         return out
 
 
-def trainEmbeddingMLP(n_epochs=5, model: SkipGramMLP, dataloader):
+def trainEmbeddingMLP(model = None, dataloader=None, n_epochs=5):
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.CrossEntropyLoss()
 
