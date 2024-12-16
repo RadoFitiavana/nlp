@@ -17,21 +17,34 @@ class SkipGramMLP(nn.Module):
         out = self.output(x)
         return out
 
-def trainEmbeddingMLP(model, dataloader, n_epochs=5):
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-    criterion = nn.CrossEntropyLoss()
+# Function to one-hot encode the context
+def one_hot_encode(indices, vocab_size):
+    return torch.eye(vocab_size)[indices]
+
+def trainEmbeddingMLP(model, dataloader, vocab_size, n_epochs=5):
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    criterion = torch.nn.CrossEntropyLoss()
 
     for epoch in range(n_epochs):
         total_loss = 0
         for center, context in dataloader:
             optimizer.zero_grad()
+            
+            # Forward pass
             outputs = model(center)
+            
+            # One-hot encode the context to match the expected shape for CrossEntropyLoss
+            context_one_hot = one_hot_encode(context, vocab_size)  # [batch_size, vocab_size]
+            
+            # Calculate the loss
             loss = criterion(outputs, context)
             loss.backward()
             optimizer.step()
+            
             total_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{n_epochs}], Loss: {total_loss:.4f}")
-
+        
+        print(f"Epoch [{epoch + 1}/{n_epochs}], Loss: {total_loss:.4f}")
+        
 def generate_pairs(vocab, sentences, window_size=2):
     pairs = []
     for sentence in sentences:
