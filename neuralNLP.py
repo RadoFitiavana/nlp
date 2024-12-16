@@ -5,8 +5,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchtext.datasets import IMDB
-from torchtext.legacy.data import Field, BucketIterator
+from torchtext.data import Field, BucketIterator
 from embedding import SkipGramMLP, trainEmbeddingMLP, LSTMClassifier, preprocess_data
+import embedding
 
 # Step 1: Load the IMDB dataset using torchtext
 TEXT = Field(sequential=True, tokenize='spacy', lower=True, include_lengths=True)
@@ -24,8 +25,8 @@ vocab = TEXT.vocab.stoi  # Indexing for vocabulary
 corpus = [vars(example)["text"] for example in train_data]  # List of tokenized sentences
 
 # Generate center-context pairs for the SkipGram model
-pairs = generate_pairs(vocab, corpus)
-dataset = Word2VecDataset(pairs)
+pairs = embedding.generate_pairs(vocab, corpus)
+dataset = embedding.Word2VecDataset(pairs)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # Initialize and train the SkipGram MLP model
