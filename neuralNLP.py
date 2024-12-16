@@ -1,95 +1,102 @@
-# neuralNLP.py
-
 import torch
-import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
+from sklearn.model_selection import train_test_split
 from torchtext.datasets import IMDB
-from torchtext.data import Field, BucketIterator
-from embedding import SkipGramMLP, trainEmbeddingMLP, LSTMClassifier, preprocess_data
-import embedding
+from embedding import SkipGramMLP, LSTMClassifier, trainEmbeddingMLP, Word2VecDataset, tokenize
+from collections import Counter
 
-# Step 1: Load the IMDB dataset using torchtext
-TEXT = Field(sequential=True, tokenize='spacy', lower=True, include_lengths=True)
-LABEL = Field(sequential=False, use_vocab=False, is_target=True)
+# Function to build vocabulary
+def build_vocab(texts):
+    counter = Counter()
+    for text in texts:
+        tokens = tokenize(text)
+        counter.update(tokens)
+    vocab = {word: i for i, (word, _) in enumerate(counter.items(), 1)}
+    vocab['<pad>'] = 0  # Add padding token
+    return vocab
 
-# Load and split the IMDB dataset into training and test sets
-train_data, test_data = IMDB.splits(TEXT, LABEL)
+# Function to prepare the dataset
+class IMDBDataset(Dataset):
+    def __init__(self, texts, labels, vocab, max_length):
+        self.texts = texts
+        self.labels = labels
+        self.vocab = vocab
+        self.max_length = max_length
 
-# Build the vocabulary using pre-trained embeddings like GloVe, or create it from the IMDB corpus
-TEXT.build_vocab(train_data, max_size=25000, vectors="glove.6B.100d", unk_init=torch.Tensor.normal_)
+    def __len__(self):
+        return len(self.texts)
 
-# Step 2: Generate center-context pairs and train the SkipGram MLP model
-# Get the vocabulary and tokenize the text
-vocab = TEXT.vocab.stoi  # Indexing for vocabulary
-corpus = [vars(example)["text"] for example in train_data]  # List of tokenized sentences
+    def __getitem__(self, idx):
+        text = self.texts[idx]
+        label = self.labels[idx]
+        # Tokenize and convert to indices
+        tokens = tokenize(text)
+        indices = [self.vocab.get(word, 0) for word in tokens]  # 0 is for unknown words
+        # Pad/truncate the sequences
+        indices = indices[:self.max_length] + [0] * (self.max_length - len(indices))
+        return torch.tensor(indices), torch.tensor(label)
 
-# Generate center-context pairs for the SkipGram model
-pairs = embedding.generate_pairs(vocab, corpus)
-dataset = embedding.Word2VecDataset(pairs)
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+# Load the IMDB dataset
+train_iter, test_iter = IMDB(split='train'), IMDB(split='test')
 
-# Initialize and train the SkipGram MLP model
-embedding_dim = 100  # Define embedding dimension
-skipgram_mlp = SkipGramMLP(len(TEXT.vocab), embedding_dim)
-trainEmbeddingMLP(skipgram_mlp, dataloader)
+# Prepare the dataset
+train_texts, train_labels = zip(*[(text, label) for label, text in train_iter])
+test_texts, test_labels = zip(*[(text, label) for label, text in test_iter])
 
-# Get the learned embeddings from the SkipGram MLP
-pretrained_embeddings = skipgram_mlp.embeddings.weight.data
+# Build vocabulary
+vocab = build_vocab(train_texts)
 
-# Step 3: Initialize and fine-tune the LSTM model with transfer learning
-hidden_dim = 128
-output_dim = 1  # Binary classification (positive or negative sentiment)
-lstm_classifier = LSTMClassifier(len(TEXT.vocab), embedding_dim, hidden_dim, output_dim, pretrained_embeddings)
+# Set parameters
+max_length = 100  # Max sequence length
 
-# Step 4: Prepare the IMDB data for the LSTM model
-# We will use BucketIterator to batch the data with sorted sequences
-train_iterator, test_iterator = BucketIterator.splits(
-    (train_data, test_data), 
-    batch_size=32, 
-    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-    sort_within_batch=True,
-    sort_key=lambda x: len(x.text)
-)
+# Create the dataset and dataloaders
+train_dataset = IMDBDataset(train_texts, train_labels, vocab, max_length)
+test_dataset = IMDBDataset(test_texts, test_labels, vocab, max_length)
 
-# Step 5: Training the LSTM model
-optimizer = optim.Adam(lstm_classifier.parameters(), lr=0.001)
-criterion = nn.BCEWithLogitsLoss()
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64)
 
-def train_lstm_model(model, iterator, optimizer, criterion):
-    model.train()
-    epoch_loss = 0
-    epoch_acc = 0
+# Initialize and train the SkipGram MLP model for embeddings
+embedding_model = SkipGramMLP(len(vocab), embedding_dim=100)
+trainEmbeddingMLP(embedding_model, train_loader, n_epochs=5)
 
-    for batch in iterator:
-        optimizer.zero_grad()
-        
-        # The LSTM model expects the text data in the form (text, lengths)
-        text, text_lengths = batch.text
-        labels = batch.label
-        
-        predictions = model(text).squeeze(1)  # Get the predictions from the LSTM
-        loss = criterion(predictions, labels.float())
-        acc = binary_accuracy(predictions, labels)
-        
-        loss.backward()
-        optimizer.step()
-        
-        epoch_loss += loss.item()
-        epoch_acc += acc.item()
+# Get the learned embeddings from the SkipGram model
+pretrained_embeddings = embedding_model.embeddings.weight.data
 
-    return epoch_loss / len(iterator), epoch_acc / len(iterator)
+# Initialize the LSTM classifier with the pretrained embeddings
+lstm_model = LSTMClassifier(len(vocab), embedding_dim=100, hidden_dim=128, output_dim=1, pretrained_embeddings=pretrained_embeddings)
 
-# Function to calculate accuracy
-def binary_accuracy(preds, y):
-    rounded_preds = torch.round(torch.sigmoid(preds))
-    correct = (rounded_preds == y).float()  # Convert into float for division
-    acc = correct.sum() / len(correct)
-    return acc
+# Train the LSTM classifier
+optimizer = optim.Adam(lstm_model.parameters(), lr=0.001)
+criterion = torch.nn.BCELoss()
 
-# Training Loop
-n_epochs = 5
-for epoch in range(n_epochs):
-    train_loss, train_acc = train_lstm_model(lstm_classifier, train_iterator, optimizer, criterion)
-    print(f"Epoch {epoch+1}/{n_epochs}, Loss: {train_loss:.4f}, Accuracy: {train_acc:.4f}")
+# Training loop for the LSTM
+def train_lstm_classifier(model, train_loader, val_loader, n_epochs=5):
+    for epoch in range(n_epochs):
+        model.train()
+        total_loss = 0
+        for texts, labels in train_loader:
+            optimizer.zero_grad()
+            outputs = model(texts)
+            loss = criterion(outputs.squeeze(), labels.float())
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        print(f"Epoch [{epoch + 1}/{n_epochs}], Loss: {total_loss:.4f}")
 
+        # Evaluate on validation set
+        model.eval()
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for texts, labels in val_loader:
+                outputs = model(texts)
+                predicted = (outputs.squeeze() > 0.5).float()
+                correct += (predicted == labels).sum().item()
+                total += labels.size(0)
+            accuracy = 100 * correct / total
+            print(f"Validation Accuracy: {accuracy:.2f}%")
+
+# Train the model
+train_lstm_classifier(lstm_model, train_loader, test_loader, n_epochs=5)
