@@ -23,15 +23,15 @@ def trainEmbeddingMLP(model = None, dataloader=None, n_epochs=5):
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(n_epochs):
-    total_loss = 0
-    for center, context in dataloader:
-        optimizer.zero_grad()
-        outputs = model(center)
-        loss = criterion(outputs, context)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
-    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
+        total_loss = 0
+        for center, context in dataloader:
+            optimizer.zero_grad()
+            outputs = model(center)
+            loss = criterion(outputs, context)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
 
 # Generate center-context pairs (window size = 2)
 def generate_pairs(vocab, sentences, window_size=2):
