@@ -22,21 +22,28 @@ class SkipGramMLP(nn.Module):
 
 
 # Function to train the SkipGram MLP model
-def trainEmbeddingMLP(model, dataloader, vocab_size, n_epochs=5):
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+def trainEmbeddingMLP(model, dataloader, vocab_size, n_epochs=5, device='cpu'):
+    model.to(device)  # Move the model to the selected device
     criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.1)
 
     for epoch in range(n_epochs):
         total_loss = 0
-        for center, context in dataloader:
+        model.train()  # Set the model to training mode
+        for target, context in dataloader:
+            target, context = target.to(device), context.to(device)  # Move data to device
+
             optimizer.zero_grad()
-            outputs = model(center)
+            outputs = model(target)
+
+            # Calculate loss
             loss = criterion(outputs, context)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{n_epochs}], Loss: {total_loss:.4f}")
 
+            total_loss += loss.item()
+
+        print(f"Epoch {epoch+1}/{n_epochs}, Loss: {total_loss:.4f}")
 
 # Generate center-context pairs for SkipGram model
 def generate_pairs(vocab, sentences, window_size=2):
