@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchtext.datasets import IMDB
-from torchtext.data import Field, BucketIterator
+from torchtext.legacy.data import Field, BucketIterator
 from embedding import SkipGramMLP, trainEmbeddingMLP, LSTMClassifier, preprocess_data
 
 # Step 1: Load the IMDB dataset using torchtext
