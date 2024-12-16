@@ -2,13 +2,16 @@ import torch
 from torch.utils.data import DataLoader
 from embedding import SkipGramMLP, trainEmbeddingMLP, Word2VecDataset, LSTMClassifier, tokenize, generate_pairs
 import numpy as np
-from sklearn.datasets import load_files
+from datasets import load_dataset
+from collections import Counter
 
-# Load the IMDB dataset (or any other dataset of choice)
+# Load the IMDB dataset from Hugging Face Datasets
 def load_imdb_data():
-    # Load data (ensure the path to IMDB dataset is correct)
-    dataset = load_files('path_to_imdb_data', categories=['pos', 'neg'], encoding='utf-8', decode_error='ignore')
-    return dataset.data, dataset.target
+    # Download the IMDB dataset from Hugging Face
+    dataset = load_dataset("imdb")
+    texts = dataset['train']['text']  # Reviews text from the train set
+    labels = dataset['train']['label']  # Labels (0 for negative, 1 for positive)
+    return texts, labels
 
 # Prepare vocabulary from the training texts
 def build_vocab(texts):
@@ -17,7 +20,7 @@ def build_vocab(texts):
     vocab = {word: idx for idx, (word, _) in enumerate(Counter(flat_words).items())}
     return vocab
 
-# Prepare the dataset
+# Prepare the dataset for Word2Vec
 def prepare_dataset(texts, vocab, window_size=2):
     pairs = generate_pairs(vocab, [tokenize(text) for text in texts], window_size)
     dataset = Word2VecDataset(pairs)
