@@ -2,12 +2,32 @@
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from keras.datasets import imdb
 from bow import CountBow, TfidfBow, Ngram
+import numpy as np
+from keras.preprocessing.sequence import pad_sequences
 
-# Assuming you have the IMDB dataset loaded into `corpus` and `labels`
-# Example:
-# corpus = ['text1', 'text2', ...]
-# labels = [0, 1, ...]
+# Load the IMDB dataset
+def load_imdb_data():
+    # Load the IMDB dataset from Keras
+    (train_data, train_labels), (test_data, test_labels) = imdb.load_data(num_words=10000)
+    
+    # Convert the sequence of integers to text by mapping indices to words
+    word_index = imdb.get_word_index()
+    reverse_word_index = {value: key for key, value in word_index.items()}
+    
+    def decode_review(text):
+        return ' '.join([reverse_word_index.get(i - 3, '?') for i in text])
+
+    # Decode the reviews into text
+    train_corpus = [decode_review(review) for review in train_data]
+    test_corpus = [decode_review(review) for review in test_data]
+    
+    # Combine the training and test sets
+    corpus = train_corpus + test_corpus
+    labels = np.concatenate([train_labels, test_labels])
+    
+    return corpus, labels
 
 # Function to train and evaluate a model
 def train_and_evaluate(vectorizer, corpus, labels):
@@ -27,6 +47,9 @@ def train_and_evaluate(vectorizer, corpus, labels):
     # Evaluate the model
     accuracy = accuracy_score(y_test, y_pred)
     return accuracy
+
+# Load dataset
+corpus, labels = load_imdb_data()
 
 # Initialize the vectorizers
 count_vectorizer = CountBow()
