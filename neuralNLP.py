@@ -57,9 +57,10 @@ test_dataset = IMDBDataset(test_texts, test_labels, vocab, max_length)
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=64)
 
+vocab_size = len(vocab)
 # Initialize and train the SkipGram MLP model for embeddings
 embedding_model = SkipGramMLP(len(vocab), embedding_dim=100)
-trainEmbeddingMLP(embedding_model, train_loader, n_epochs=5)
+trainEmbeddingMLP(embedding_model, train_loader, vocab_size, n_epochs=5)
 
 # Get the learned embeddings from the SkipGram model
 pretrained_embeddings = embedding_model.embeddings.weight.data
