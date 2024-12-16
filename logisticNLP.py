@@ -64,7 +64,7 @@ def prepare_bow_features(bow_method, train_texts, test_texts, method="default", 
             bow_method.vectorize(train_texts)
 
     # Sparse matrix for training data
-    X_train = bow_method.embedding
+    X_train = bow_method.embedding.copy()
 
     if isinstance(bow_method, Ngram):
         if method == "norm":
@@ -79,7 +79,7 @@ def prepare_bow_features(bow_method, train_texts, test_texts, method="default", 
         else:
             bow_method.vectorize(test_texts)
     # Transform the test data explicitly
-    X_test = bow_method.embedding
+    X_test = bow_method.embedding.copy()
     
     print(f"Train Feature Matrix Shape: {X_train.shape}")
     print(f"Test Feature Matrix Shape: {X_test.shape}\n")
